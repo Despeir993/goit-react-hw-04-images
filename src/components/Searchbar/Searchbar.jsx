@@ -1,42 +1,52 @@
-import { useState } from 'react';
-import css from './Searchbar.module.css';
 
-export const Searchbar = ({ onSubmit }) => {
-  const [searchQuery, setSearchQuery] = useState('');
+import { Formik } from 'formik';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { ImSearch} from "react-icons/im";
+import { Header, FormCastom, Button, Span, FieldCastom } from './Searchbar.styled';
+import PropTypes from 'prop-types';
 
-  const handleChangeQuery = e => {
-    setSearchQuery(e.currentTarget.value.toLowerCase());
-  };
+let initialValue = {
+    search:''
+};
 
-  const handleSubmit = e => {
-    e.preventDefault();
-
-    if (searchQuery.trim().length === 0) {
-      return;
+export const Searchbar = ({onFormData}) => {
+    const handleSubmit = ({search}, { resetForm }) => {
+        if (search.trim() === '') {
+            toast.error(`Request cannot contain an empty string`, {
+                    position: "top-right",
+                    autoClose: 3000,
+                    theme: "colored",
+            });  
+            return;
+       }
+        onFormData(search);
+        resetForm();
     }
+    
+    return (
+       <Header > 
+            <Formik initialValues={initialValue} onSubmit={handleSubmit}>
+                <FormCastom autoComplete="off">
+                    <Button type="submit" >
+                        <ImSearch/>
+                        <Span>Search</Span>
+                    </Button>
 
-    onSubmit(searchQuery);
+                    <FieldCastom
+                        autoFocus
+                        type="text"
+                        name="search"
+                        placeholder="Search images and photos"
+                    />
+                </FormCastom>
+            </Formik>
+        </Header>
+        
+    );
+};
 
-    setSearchQuery('');
-    e.target.reset();
-  };
+Searchbar.propTypes = {
+    onFormData: PropTypes.func.isRequired,
 
-  return (
-    <header className={css.Searchbar}>
-      <form className={css.SearchForm} onSubmit={handleSubmit}>
-        <button type="submit" className={css.SearchForm_button}>
-          <span className={css.SearchForm_button_label}>Search</span>
-        </button>
-
-        <input
-          className={css.SearchForm_input}
-          onChange={handleChangeQuery}
-          type="text"
-          autoComplete="off"
-          autoFocus
-          placeholder="Search images and photos"
-        />
-      </form>
-    </header>
-  );
 };

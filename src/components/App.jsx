@@ -1,77 +1,95 @@
-import { useEffect, useState } from 'react';
-import { Button } from './Button/Button';
-import { ImageGallery } from './ImageGallery/ImageGallery';
-import { Modal } from './Modal/Modal';
-import { Searchbar } from './Searchbar/Searchbar';
-import { Loader } from './Loader/Loader';
-import { API } from './Servises/API';
-
-import css from './App.module.css';
+import { useState, useEffect } from 'react';
+import { Searchbar } from 'components/Searchbar';
+import { PixabayApi } from './Services/PixabayApi';
+import { ToastContainer } from 'react-toastify';
+import { ImageGallery } from './ImageGallery';
+import { Loader } from 'components/Loader';
+import { toast } from 'react-toastify';
+import { Button } from 'components/Button';
+import { H1 } from './ImageGallery/ImageGallery.styled';
+import { AppDiv } from './App.styled';
+import 'react-toastify/dist/ReactToastify.css';
 
 export const App = () => {
   const [query, setQuery] = useState('');
-  const [queryArr, setQueryArr] = useState([]);
-  const [largeImg, setLargeImg] = useState('');
-  const [isModalShown, setIsModalShown] = useState(false);
-  const [queryStatus, setQueryStatus] = useState('idle');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalImage, setTotalImage] = useState(0);
-
-  const onSubmit = name => {
-    setQuery(name);
-    setCurrentPage(1);
-    setLargeImg('');
-    setQueryArr([]);
-  };
-
-  const toggleModal = () => {
-    setIsModalShown(prevState => !prevState);
-  };
-
-  const onGalleryItemClick = src => {
-    toggleModal();
-    setLargeImg(src);
-  };
-
-  const loadMore = () => {
-    setCurrentPage(prevState => prevState + 1);
-  };
+  const [finishRenderList, setFinishRenderList] = useState([]);
+  const [error, setError] = useState(null);
+  const [page, setPage] = useState(1);
+  const [status, setStatus] = useState('idle');
+  const [totalHits, setTotalHits] = useState(0);
 
   useEffect(() => {
-    if (query.length === 0) {
+    if (!query) {
       return;
     }
+    FetchingSevrice(query, page);
+  }, [query,page]);
+  
 
+  const FetchingSevrice = async (searchWord, page) => {
     try {
-      setQueryStatus('pending');
-      API(query, currentPage).then(res => {
-        if (res.data.hits.length === 0) {
-          setQueryStatus('idle');
-          return window.alert(
-            'Sorry, there are no images matching your search query. Please try again'
-          );
-        }
-        setQueryArr(prevState => [...prevState, ...res.data.hits]);
-        setQueryStatus('idle');
-        setTotalImage(res.data.total);
-      });
+      setStatus('pending');
+      const reciveSetPIcture = await PixabayApi(searchWord, page);
+      if (reciveSetPIcture.total === 0) {
+        toast.error(`there is no  query with  "${searchWord.toUpperCase()}"`, {
+          position: 'top-right',
+          autoClose: 2000,
+          theme: 'colored',
+        });
+        setStatus('reject');
+        return;
+      }
+        
+      setStatus('resolved');
+      setFinishRenderList(prevState => [...prevState, ...reciveSetPIcture.hits ]);
+      setTotalHits(reciveSetPIcture.totalHits);
+
     } catch (error) {
-      console.log(error);
-      window.alert('Something wrong');
+      setError(error);
+      toast.error(`"${error}" Something were wrong `, {
+        position: 'top-right',
+        autoClose: 3000,
+        theme: 'colored',
+      });
     }
-  }, [query, currentPage]);
+
+  };
+ 
+  const onFormData = value => {
+    setQuery('');
+    setQuery(value);
+    setPage(1);
+    setTotalHits(0);
+    setFinishRenderList([]);
+  };
+
+  const showHideButton = () =>
+  {
+   return (totalHits / finishRenderList.length > 1);
+  }
+
+  const onLoadMore = () => {
+    setPage(prevState => prevState + 1);
+    setStatus('pending');
+  };
 
   return (
-    <section className={css.App}>
-      <Searchbar onSubmit={onSubmit} />
-      <ImageGallery queryArr={queryArr} click={onGalleryItemClick} />
-      {0 < queryArr.length && queryArr.length < totalImage && (
-        <Button onClick={loadMore} />
+    <AppDiv>
+      <Searchbar onFormData={onFormData} />
+      
+      {status === 'idle' && (
+        <div>
+          <H1>Please make a request and press enter </H1>
+        </div>
       )}
-      {isModalShown && (
-        <Modal src={largeImg} close={toggleModal} isModalShown={isModalShown} />
-      )}
-      {queryStatus === 'pending' && <Loader />}
-    </section>
+      {(status === 'rejected') && (<h1> {error} </h1>)}
+      {finishRenderList.length > 0 && <ImageGallery finishRenderList={finishRenderList}/>}
+      {status === 'pending' && finishRenderList && <Loader />}
+      {status === 'resolved' && showHideButton() && (finishRenderList !== 0) &&
+          <Button onClick={onLoadMore} />}
+      <ToastContainer />
+    </AppDiv>
   );
 };
+
+
